@@ -10,8 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         'db_pass'    => trim($_POST['db_pass']),
         'db_name'    => trim($_POST['db_name']),
         's3_bucket'  => trim($_POST['s3_bucket']),
-        's3_region'  => trim($_POST['s3_region']),
-        's3_url'     => rtrim(trim($_POST['s3_url']), '/') . '/'
+        's3_region'  => trim($_POST['s3_region'])
     ];
 
     // Intentar connectar al servidor MySQL (sense seleccionar BD)
@@ -56,21 +55,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     Contrasenya DB: <input name="db_pass" type="password" value="<?= htmlspecialchars($config['db_pass'] ?? '') ?>" required><br>
     Nom BD (s'es crearà si no existeix): <input name="db_name" value="<?= htmlspecialchars($config['db_name'] ?? '') ?>" required><br>
     Bucket S3 (nom): <input name="s3_bucket" value="<?= htmlspecialchars($config['s3_bucket'] ?? '') ?>" required><br>
-    Regió S3: <input name="s3_region" value="<?= htmlspecialchars($config['s3_region'] ?? '') ?>" required><br>
-    URL pública / CloudFront (ex: https://dxxxxxx.cloudfront.net/): <input name="s3_url" value="<?= htmlspecialchars($config['s3_url'] ?? '') ?>" required><br>
+    Regió S3 (ex: eu-south-2): <input name="s3_region" value="<?= htmlspecialchars($config['s3_region'] ?? 'eu-south-2') ?>" required><br>
     <button type="submit">Guardar i provar</button>
   </form>
 
-  <?php if (isset($config) && !empty($config['s3_url'])): ?>
-    <h3>Imatges d'exemple a S3</h3>
-    <?php
-      $images = ['foto1.jpg','foto2.jpg','foto3.jpg'];
-      foreach ($images as $img) {
-          $url = htmlspecialchars($config['s3_url'] . $img);
-          echo "<img src='{$url}' width='200' style='margin:8px;border:1px solid #ccc' />";
-      }
-    ?>
-  <?php endif; ?>
+
 
   <p><a href="index.php">Anar a la pàgina principal</a></p>
 </body>

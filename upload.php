@@ -35,7 +35,6 @@ $db_pass   = $config['db_pass'] ?? '';
 $db_name   = $config['db_name'] ?? '';
 $s3_bucket = $config['s3_bucket'] ?? '';
 $s3_region = $config['s3_region'] ?? '';
-$s3_url    = $config['s3_url'] ?? '';
 
 if (!$db_host || !$db_user || !$db_name || !$s3_bucket || !$s3_region) {
     die("<h3>❌ Configuració incompleta! Executa primer config.php.</h3>");
@@ -54,6 +53,7 @@ $filePath = $file['tmp_name'];
 $fileName = basename($file['name']);
 
 logMsg("Rebut fitxer '$fileName' per pujar a S3 ($s3_bucket).");
+logMsg("Regió configurada: $s3_region");
 
 try {
     $identity = shell_exec('aws sts get-caller-identity 2>&1');
@@ -63,6 +63,21 @@ try {
 }
 
 try {
+    // Primer detectem la regió real del bucket
+    $s3_temp = new S3Client([
+        'version' => 'latest',
+        'region'  => 'us-east-1'
+    ]);
+    
+    try {
+        $location = $s3_temp->getBucketLocation(['Bucket' => $s3_bucket]);
+        $real_region = $location['LocationConstraint'] ?: 'us-east-1';
+        logMsg("🌍 Regió REAL del bucket detectada: $real_region");
+        $s3_region = $real_region;
+    } catch (AwsException $e) {
+        logMsg("⚠️ No s'ha pogut detectar la regió del bucket, usant la configurada: $s3_region");
+    }
+    
     $s3 = new S3Client([
         'version' => 'latest',
         'region'  => $s3_region,
@@ -76,7 +91,8 @@ try {
         'ACL'    => 'public-read'
     ]);
 
-    $url = $result['ObjectURL'] ?? ($s3_url . $fileName);
+    // Generar la URL directa de S3
+    $url = "https://{$s3_bucket}.s3.{$s3_region}.amazonaws.com/{$fileName}";
     logMsg("✅ Pujada correcta a S3: $url");
 
 } catch (AwsException $e) {
