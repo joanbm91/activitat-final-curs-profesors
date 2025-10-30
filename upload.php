@@ -65,7 +65,8 @@ try {
 try {
     $s3 = new S3Client([
         'version' => 'latest',
-        'region'  => $s3_region
+        'region'  => $s3_region,
+        'endpoint' => "https://s3.{$s3_region}.amazonaws.com"
     ]);
 
     $result = $s3->putObject([
