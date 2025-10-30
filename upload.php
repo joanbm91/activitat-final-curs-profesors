@@ -23,11 +23,29 @@ if (!file_exists($logFile)) {
 // --- Requereix dependències
 try {
     require 'vendor/autoload.php';   // SDK AWS
-    require 'config.php';            // Config de la base de dades
     require 'db.php';                // Funcions de base de dades
 } catch (Throwable $e) {
     logMsg("❌ Error carregant fitxers PHP: " . $e->getMessage());
     die("Error carregant dependències: " . htmlspecialchars($e->getMessage()));
+}
+
+// --- Carrega config.json
+$configFile = __DIR__ . '/config.json';
+if (!file_exists($configFile)) {
+    die("<h3>❌ Error: config.json no existeix! Executa primer config.php.</h3>");
+}
+$config = json_decode(file_get_contents($configFile), true);
+
+// --- Comprovem que tenim tots els valors essencials
+$db_host   = $config['db_host'] ?? '';
+$db_user   = $config['db_user'] ?? '';
+$db_pass   = $config['db_pass'] ?? '';
+$db_name   = $config['db_name'] ?? '';
+$s3_bucket = $config['s3_bucket'] ?? '';
+$s3_url    = $config['s3_url'] ?? '';
+
+if (!$db_host || !$db_user || !$db_name || !$s3_bucket) {
+    die("<h3>❌ Configuració incompleta! Executa primer config.php.</h3>");
 }
 
 use Aws\S3\S3Client;
@@ -42,10 +60,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_FILES['file'])) {
 $file = $_FILES['file'];
 $filePath = $file['tmp_name'];
 $fileName = basename($file['name']);
-$bucket = 'test-123456'; // 👈 Canvia-ho o fes-ho configurable
-$region = 'eu-west-1';
 
-logMsg("Rebut fitxer '$fileName' per pujar a S3 ($bucket).");
+logMsg("Rebut fitxer '$fileName' per pujar a S3 ($s3_bucket).");
 
 // --- Comprovem que AWS CLI / SDK funciona
 try {
@@ -59,13 +75,13 @@ try {
 try {
     $s3 = new S3Client([
         'version' => 'latest',
-        'region'  => $region
+        'region'  => 'eu-west-1'
     ]);
 
-    logMsg("Intentant pujar fitxer a s3://$bucket/$fileName");
+    logMsg("Intentant pujar fitxer a s3://$s3_bucket/$fileName");
 
     $result = $s3->putObject([
-        'Bucket' => $bucket,
+        'Bucket' => $s3_bucket,
         'Key'    => $fileName,
         'SourceFile' => $filePath,
         'ACL'    => 'public-read'
