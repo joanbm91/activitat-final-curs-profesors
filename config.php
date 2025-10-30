@@ -5,23 +5,22 @@ $config = null;
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $config = [
-        'db_host' => trim($_POST['db_host']),
-        'db_user' => trim($_POST['db_user']),
-        'db_pass' => trim($_POST['db_pass']),
-        'db_name' => trim($_POST['db_name']),
-        's3_bucket' => trim($_POST['s3_bucket']),
-        's3_url' => rtrim(trim($_POST['s3_url']), '/') . '/'
+        'db_host'    => trim($_POST['db_host']),
+        'db_user'    => trim($_POST['db_user']),
+        'db_pass'    => trim($_POST['db_pass']),
+        'db_name'    => trim($_POST['db_name']),
+        's3_bucket'  => trim($_POST['s3_bucket']),
+        's3_region'  => trim($_POST['s3_region']),
+        's3_url'     => rtrim(trim($_POST['s3_url']), '/') . '/'
     ];
 
     // Intentar connectar al servidor MySQL (sense seleccionar BD)
     $conn = @mysqli_connect($config['db_host'], $config['db_user'], $config['db_pass']);
     if ($conn) {
-        // Crear base de dades si no existeix
         $db = mysqli_real_escape_string($conn, $config['db_name']);
         mysqli_query($conn, "CREATE DATABASE IF NOT EXISTS `{$db}`");
         mysqli_select_db($conn, $db);
 
-        // Crear taula uploads si no existeix
         $create = "CREATE TABLE IF NOT EXISTS uploads (
             id INT AUTO_INCREMENT PRIMARY KEY,
             filename VARCHAR(255) NOT NULL,
@@ -29,15 +28,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         )";
         mysqli_query($conn, $create);
 
-        // Desa config.json
         file_put_contents(__DIR__ . '/config.json', json_encode($config, JSON_PRETTY_PRINT));
         $msg = "<p style='color:green;'>✅ Connexió correcta, base de dades i taula creades (si cal). Configuració desada.</p>";
         mysqli_close($conn);
     } else {
-        $msg = "<p style='color:red;'>❌ Error connectant: " . htmlspecialchars(mysqli_connect_error()) . "</p>";
+        $msg = "<p style='color:red;'>❌ Error connectant: " . htmlspecialchars(mysqli_connect_error() ?? 'Error desconegut') . "</p>";
     }
 } else {
-    // si ja existeix config.json, carregar-lo per mostrar al formulari
     if (file_exists(__DIR__ . '/config.json')) {
         $config = json_decode(file_get_contents(__DIR__ . '/config.json'), true);
     }
@@ -54,16 +51,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
   <h2>Configuració inicial - Mini PHP App</h2>
   <?php if ($msg) echo $msg; ?>
   <form method="POST">
-    Endpoint RDS: <input name="db_host" value="<?= isset($config['db_host'])?htmlspecialchars($config['db_host']):'' ?>" required><br>
-    Usuari DB: <input name="db_user" value="<?= isset($config['db_user'])?htmlspecialchars($config['db_user']):'' ?>" required><br>
-    Contrasenya DB: <input name="db_pass" type="password" value="<?= isset($config['db_pass'])?htmlspecialchars($config['db_pass']):'' ?>" required><br>
-    Nom BD (s'es crearà si no existeix): <input name="db_name" value="<?= isset($config['db_name'])?htmlspecialchars($config['db_name']):'' ?>" required><br>
-    Bucket S3 (nom): <input name="s3_bucket" value="<?= isset($config['s3_bucket'])?htmlspecialchars($config['s3_bucket']):'' ?>" required><br>
-    URL pública / CloudFront (ex: https://dxxxxxx.cloudfront.net/): <input name="s3_url" value="<?= isset($config['s3_url'])?htmlspecialchars($config['s3_url']):'' ?>" required><br>
+    Endpoint RDS: <input name="db_host" value="<?= htmlspecialchars($config['db_host'] ?? '') ?>" required><br>
+    Usuari DB: <input name="db_user" value="<?= htmlspecialchars($config['db_user'] ?? '') ?>" required><br>
+    Contrasenya DB: <input name="db_pass" type="password" value="<?= htmlspecialchars($config['db_pass'] ?? '') ?>" required><br>
+    Nom BD (s'es crearà si no existeix): <input name="db_name" value="<?= htmlspecialchars($config['db_name'] ?? '') ?>" required><br>
+    Bucket S3 (nom): <input name="s3_bucket" value="<?= htmlspecialchars($config['s3_bucket'] ?? '') ?>" required><br>
+    Regió S3: <input name="s3_region" value="<?= htmlspecialchars($config['s3_region'] ?? '') ?>" required><br>
+    URL pública / CloudFront (ex: https://dxxxxxx.cloudfront.net/): <input name="s3_url" value="<?= htmlspecialchars($config['s3_url'] ?? '') ?>" required><br>
     <button type="submit">Guardar i provar</button>
   </form>
 
-  <?php if (isset($config) && isset($config['s3_url'])): ?>
+  <?php if (isset($config) && !empty($config['s3_url'])): ?>
     <h3>Imatges d'exemple a S3</h3>
     <?php
       $images = ['foto1.jpg','foto2.jpg','foto3.jpg'];
