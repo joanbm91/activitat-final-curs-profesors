@@ -87,8 +87,7 @@ try {
     $result = $s3->putObject([
         'Bucket' => $s3_bucket,
         'Key'    => $fileName,
-        'SourceFile' => $filePath,
-        'ACL'    => 'public-read'
+        'SourceFile' => $filePath
     ]);
 
     // Generar la URL directa de S3
