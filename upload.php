@@ -75,7 +75,7 @@ try {
 try {
     $s3 = new S3Client([
         'version' => 'latest',
-        'region'  => 'eu-west-1'
+        'region'  => 'eu-south-2'
     ]);
 
     logMsg("Intentant pujar fitxer a s3://$s3_bucket/$fileName");
