@@ -26,7 +26,7 @@ try {
     require 'db.php';                // Funcions de base de dades
 } catch (Throwable $e) {
     logMsg("❌ Error carregant fitxers PHP: " . $e->getMessage());
-    die("Error carregant dependències: " . htmlspecialchars($e->getMessage()));
+    die("Error carregant dependències: " . htmlspecialchars($e->getMessage() ?? 'Error desconegut'));
 }
 
 // --- Carrega config.json
@@ -68,7 +68,7 @@ try {
     $identity = shell_exec('aws sts get-caller-identity 2>&1');
     logMsg("Identitat IAM detectada: " . trim($identity));
 } catch (Throwable $e) {
-    logMsg("⚠️ No s'ha pogut obtenir identitat IAM: " . $e->getMessage());
+    logMsg("⚠️ No s'ha pogut obtenir identitat IAM: " . ($e->getMessage() ?? 'Error desconegut'));
 }
 
 // --- Pujada a S3
@@ -87,17 +87,19 @@ try {
         'ACL'    => 'public-read'
     ]);
 
-    $url = $result['ObjectURL'];
+    $url = $result['ObjectURL'] ?? ($s3_url . $fileName);
     logMsg("✅ Pujada correcta a S3: $url");
 
 } catch (AwsException $e) {
-    logMsg("❌ Error AWS: " . $e->getAwsErrorMessage());
-    logMsg("Detall complet: " . $e->getMessage());
-    echo "<h3>Error pujant fitxer a S3:</h3><pre>" . htmlspecialchars($e->getAwsErrorMessage()) . "</pre>";
+    $msg = $e->getAwsErrorMessage() ?? 'Error desconegut';
+    logMsg("❌ Error AWS: " . $msg);
+    logMsg("Detall complet: " . ($e->getMessage() ?? 'Sense detall'));
+    echo "<h3>Error pujant fitxer a S3:</h3><pre>" . htmlspecialchars($msg) . "</pre>";
     exit;
 } catch (Throwable $e) {
-    logMsg("❌ Error general S3: " . $e->getMessage());
-    echo "<h3>Error general pujant fitxer:</h3><pre>" . htmlspecialchars($e->getMessage()) . "</pre>";
+    $msg = $e->getMessage() ?? 'Error desconegut';
+    logMsg("❌ Error general S3: " . $msg);
+    echo "<h3>Error general pujant fitxer:</h3><pre>" . htmlspecialchars($msg) . "</pre>";
     exit;
 }
 
@@ -106,14 +108,15 @@ try {
     if (saveFileToDB($fileName, $url)) {
         logMsg("📦 Fitxer registrat a la base de dades correctament.");
         echo "<h3>✅ Fitxer pujat correctament i registrat a la base de dades.</h3>";
-        echo "<p><a href='$url' target='_blank'>Veure fitxer a S3</a></p>";
+        echo "<p><a href='" . htmlspecialchars($url) . "' target='_blank'>Veure fitxer a S3</a></p>";
     } else {
         logMsg("⚠️ No s'ha pogut guardar el registre a la BD.");
         echo "<h3>⚠️ Fitxer pujat, però no s'ha pogut registrar a la base de dades.</h3>";
     }
 } catch (Throwable $e) {
-    logMsg("❌ Error inserint a la BD: " . $e->getMessage());
-    echo "<h3>Error afegint a la base de dades:</h3><pre>" . htmlspecialchars($e->getMessage()) . "</pre>";
+    $msg = $e->getMessage() ?? 'Error desconegut';
+    logMsg("❌ Error inserint a la BD: " . $msg);
+    echo "<h3>Error afegint a la base de dades:</h3><pre>" . htmlspecialchars($msg) . "</pre>";
 }
 
 echo "<hr><pre>Consulta el log a $logFile</pre>";
