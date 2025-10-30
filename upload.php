@@ -1,60 +1,63 @@
 <?php
-// upload.php
-require_once 'db.php';
+require 'vendor/autoload.php';
+require 'config.php'; // per agafar variables de connexió
+require 'db.php';     // per registrar el fitxer a la BD
 
-$config_file = __DIR__ . '/config.json';
-if (!file_exists($config_file)) {
-    die("No configurat. Accedeix a config.php");
-}
-$config = json_decode(file_get_contents($config_file), true);
-$bucket = $config['s3_bucket'];
+use Aws\S3\S3Client;
+use Aws\Exception\AwsException;
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_FILES['file'])) {
-    die("No file uploaded.");
-}
+$logFile = '/var/log/app_s3_upload.log';
 
-$file = $_FILES['file'];
-if ($file['error'] !== UPLOAD_ERR_OK) {
-    die("Upload error code: " . $file['error']);
+// funció per escriure logs
+function logMsg($msg, $logFile) {
+    file_put_contents($logFile, "[".date("Y-m-d H:i:s")."] $msg\n", FILE_APPEND);
 }
 
-$orig_name = basename($file['name']);
-$ext = pathinfo($orig_name, PATHINFO_EXTENSION);
-$allowed = ['jpg','jpeg','png','gif'];
-if (!in_array(strtolower($ext), $allowed)) {
-    die("Format no permès.");
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
+    $file = $_FILES['file'];
+    $filePath = $file['tmp_name'];
+    $fileName = basename($file['name']);
+    $bucket = 'test-123456';  // 👈 el bucket del professor (o que defineixi l’alumne)
+
+    logMsg("Rebut fitxer $fileName per pujar a S3.", $logFile);
+
+    try {
+        // client S3 (usa IAM Role de la instància)
+        $s3 = new S3Client([
+            'version' => 'latest',
+            'region'  => 'eu-west-1'
+        ]);
+
+        logMsg("Intentant pujar s3://$bucket/$fileName", $logFile);
+
+        $result = $s3->putObject([
+            'Bucket' => $bucket,
+            'Key'    => $fileName,
+            'SourceFile' => $filePath,
+            'ACL'    => 'public-read'
+        ]);
+
+        $url = $result['ObjectURL'];
+        logMsg("✅ Pujada correcta a S3: $url", $logFile);
+
+        // Guarda el nom a la base de dades
+        if (saveFileToDB($fileName, $url)) {
+            logMsg("Fitxer $fileName desat a la base de dades correctament.", $logFile);
+            echo "✅ Fitxer pujat i registrat!";
+        } else {
+            logMsg("⚠️ No s'ha pogut registrar a la BD.", $logFile);
+            echo "Fitxer pujat però no registrat a la BD.";
+        }
+
+    } catch (AwsException $e) {
+        logMsg("❌ Error AWS: ".$e->getAwsErrorMessage(), $logFile);
+        logMsg("Detall: ".$e->getMessage(), $logFile);
+        echo "Error pujant fitxer. Revisa el log.";
+    } catch (Exception $e) {
+        logMsg("❌ Error general: ".$e->getMessage(), $logFile);
+        echo "Error inesperat. Revisa el log.";
+    }
+} else {
+    echo "Cap fitxer rebut.";
 }
-
-// Generar nom únic (per evitar col·lisions)
-$unique = time() . '-' . preg_replace('/[^A-Za-z0-9\-_\.]/', '_', $orig_name);
-$tmp_path = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $unique;
-
-if (!move_uploaded_file($file['tmp_name'], $tmp_path)) {
-    die("No s'ha pogut moure el fitxer.");
-}
-
-// Pujar a S3 amb aws cli (requereix aws cli instal·lat i rol d'instància)
-$cmd = 'aws s3 cp ' . escapeshellarg($tmp_path) . ' ' . escapeshellarg("s3://{$bucket}/{$unique}") . ' --only-show-errors --acl public-read';
-exec($cmd, $output, $ret);
-if ($ret !== 0) {
-    unlink($tmp_path);
-    die("Error pujant a S3. Comanda: $cmd");
-}
-
-// Inserir a la base de dades
-$conn = get_db_conn();
-if (!$conn) {
-    unlink($tmp_path);
-    die("Error DB connect");
-}
-
-$fn_esc = mysqli_real_escape_string($conn, $unique);
-$sql = "INSERT INTO uploads (filename) VALUES ('{$fn_esc}')";
-mysqli_query($conn, $sql);
-
-mysqli_close($conn);
-unlink($tmp_path);
-
-header("Location: index.php");
-exit;
 ?>
