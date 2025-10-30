@@ -23,9 +23,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $create = "CREATE TABLE IF NOT EXISTS uploads (
             id INT AUTO_INCREMENT PRIMARY KEY,
             filename VARCHAR(255) NOT NULL,
+            url VARCHAR(500) NOT NULL,
             uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )";
         mysqli_query($conn, $create);
+        
+        // Añadir columna url si no existe
+        $addColumn = "ALTER TABLE uploads ADD COLUMN IF NOT EXISTS url VARCHAR(500) NOT NULL AFTER filename";
+        @mysqli_query($conn, $addColumn);
 
         file_put_contents(__DIR__ . '/config.json', json_encode($config, JSON_PRETTY_PRINT));
         $msg = "<p style='color:green;'>✅ Connexió correcta, base de dades i taula creades (si cal). Configuració desada.</p>";

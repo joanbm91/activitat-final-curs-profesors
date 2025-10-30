@@ -18,4 +18,20 @@ function get_db_conn() {
     $conn = @mysqli_connect($host, $user, $pass, $db);
     return $conn;
 }
+
+function saveFileToDB($filename, $url) {
+    $conn = get_db_conn();
+    if (!$conn) {
+        return false;
+    }
+    
+    $filename = mysqli_real_escape_string($conn, $filename);
+    $url = mysqli_real_escape_string($conn, $url);
+    
+    $sql = "INSERT INTO uploads (filename, url) VALUES ('$filename', '$url')";
+    $result = mysqli_query($conn, $sql);
+    
+    mysqli_close($conn);
+    return $result;
+}
 ?>
